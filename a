@@ -38,13 +38,11 @@ rm -rf ~/.nym/clients
 rm -rf ~/.nym/socks5-clients
 rm -rf ~/.nym/service-providers
 
-/usr/local/bin/nym-client init --id requester-client | tee ~/nym/client.txt
-sleep 3
-ADDRESS=n1wmtk0v0v0z2tyvh8smg9et059gzn98lew87aut
-GATEWAY=2TqMTwmE7dfdvG1YGWny4Ddd3ZaJB5F76vA6rx1kr3Wr
+/usr/local/bin/nym-client init --id requester-client
+
 
 sleep 2
-/usr/local/bin/nym-socks5-client init --id socks5 --provider $ADDRESS --gateway $GATEWAY | tee ~/nym/socks5.txt
+/usr/local/bin/nym-socks5-client init --id socks5 --provider n1wmtk0v0v0z2tyvh8smg9et059gzn98lew87aut --gateway 2TqMTwmE7dfdvG1YGWny4Ddd3ZaJB5F76vA6rx1kr3Wr
 
 echo "[Unit]
 Description=Nym Client
