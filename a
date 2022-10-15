@@ -1,0 +1,130 @@
+#!/bin/bash
+exists()
+{
+  command -v "$1" >/dev/null 2>&1
+}
+if exists curl; then
+echo ''
+else
+  apt update && apt install curl -y < "/dev/null"
+fi
+bash_profile=$HOME/.bash_profile
+if [ -f "$bash_profile" ]; then
+    . $HOME/.bash_profile
+fi
+sleep 1 && curl -s https://api.nodes.guru/logo.sh | bash && sleep 2
+
+apt update && apt install make clang pkg-config libssl-dev build-essential ufw git -y -qq < "/dev/null"
+echo -e '\n\e[42mInstall Rust\e[0m\n' && sleep 1
+curl https://sh.rustup.rs -sSf | sh -s -- -y
+source $HOME/.cargo/env
+echo -e '\n\e[42mInstall software\e[0m\n' && sleep 1
+cd $HOME
+rm -rf nym
+git clone https://github.com/nymtech/nym.git
+cd nym
+git reset --hard
+git pull
+git checkout tags/nym-binaries-1.0.2
+sed -i.bak 's/127.0.0.1/0.0.0.0/' ~/nym/clients/socks5/src/socks/server.rs
+#sed -i.bak "s/127.0.0.1/0.0.0.0/" ~/nym/clients/native/src/websocket/listener.rs
+cargo build --release
+
+mv $HOME/nym/target/release/nym-client /usr/local/bin/
+mv $HOME/nym/target/release/nym-network-requester /usr/local/bin/
+mv $HOME/nym/target/release/nym-socks5-client /usr/local/bin/
+#mv ~/.nym ~/.nym_backup_$(date +%s) 2>/dev/null
+rm -rf ~/.nym/clients
+rm -rf ~/.nym/socks5-clients
+rm -rf ~/.nym/service-providers
+
+/usr/local/bin/nym-client init --id requester-client | tee ~/nym/client.txt
+sleep 3
+ADDRESS=$(grep 'The address of this client is:'  ~/nym/client.txt | awk {'print $7'})
+GATEWAY=$(grep 'Using gateway:'  ~/nym/client.txt | awk {'print $3'})
+sleep 2
+/usr/local/bin/nym-socks5-client init --id socks5 --provider $ADDRESS --gateway $GATEWAY | tee ~/nym/socks5.txt
+
+echo "[Unit]
+Description=Nym Client
+StartLimitInterval=350
+StartLimitBurst=10
+
+[Service]
+User=$USER
+LimitNOFILE=65536
+ExecStart=$(which nym-client) run --id requester-client
+KillSignal=SIGINT
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target" >nym-client.service
+
+echo "[Unit]
+Description=Nym Requester
+StartLimitInterval=350
+StartLimitBurst=10
+
+[Service]
+User=$USER
+LimitNOFILE=65536
+ExecStart=$(which nym-network-requester) --open-proxy
+KillSignal=SIGINT
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target" >nym-network-requester.service
+
+echo "[Unit]
+Description=Nym Socks5
+StartLimitInterval=350
+StartLimitBurst=10
+
+[Service]
+User=$USER
+LimitNOFILE=65536
+ExecStart=$(which nym-socks5-client) run --id socks5
+KillSignal=SIGINT
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target" >nym-socks5-client.service
+
+mv nym-client.service /etc/systemd/system/
+mv nym-socks5-client.service /etc/systemd/system/
+mv nym-network-requester.service /etc/systemd/system/
+echo -e '\n\e[42mRunning a service\e[0m\n' && sleep 1
+systemctl daemon-reload
+systemctl enable nym-client
+systemctl enable nym-network-requester
+systemctl enable nym-socks5-client
+systemctl restart nym-client
+sleep 5
+systemctl restart nym-network-requester
+sleep 5
+systemctl restart nym-socks5-client
+sleep 2
+echo -e '\n\e[42mCheck Nym-client\e[0m\n' && sleep 1
+if [[ `service nym-client status | grep active` =~ "running" ]]; then
+  echo -e "Your Nym-client \e[32minstalled and works\e[39m!"
+  echo -e "You can check status by the command \e[7mservice nym-client status\e[0m"
+else
+  echo -e "Your Nym-client \e[31mwas not installed correctly\e[39m, please reinstall."
+fi  
+ echo -e '\n\e[42mCheck Nym-network-requester status\e[0m\n' && sleep 2
+if [[ `service nym-network-requester status | grep active` =~ "running" ]]; then
+  echo -e "Your Nym-network-requester \e[32minstalled and works\e[39m!"
+  echo -e "You can check status by the command \e[7mservice nym-network-requester status\e[0m"
+else
+  echo -e "Your Nym-network-requester \e[31mwas not installed correctly\e[39m, please reinstall."
+fi   
+ echo -e '\n\e[42mCheck Nym-socks5-client status\e[0m\n' && sleep 2
+if [[ `service nym-socks5-client status | grep active` =~ "running" ]]; then
+  echo -e "Your Nym-socks5-client \e[32minstalled and works\e[39m!"
+  echo -e "You can check status by the command \e[7mservice nym-socks5-client status\e[0m"
+else
+  echo -e "Your Nym-socks5-client \e[31mwas not installed correctly\e[39m, please reinstall."
+fi
