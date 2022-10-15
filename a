@@ -40,8 +40,9 @@ rm -rf ~/.nym/service-providers
 
 /usr/local/bin/nym-client init --id requester-client | tee ~/nym/client.txt
 sleep 3
-ADDRESS=$(grep 'The address of this client is:'  ~/nym/client.txt | awk {'print $7'})
-GATEWAY=$(grep 'Using gateway:'  ~/nym/client.txt | awk {'print $3'})
+ADDRESS=n1wmtk0v0v0z2tyvh8smg9et059gzn98lew87aut
+GATEWAY=2TqMTwmE7dfdvG1YGWny4Ddd3ZaJB5F76vA6rx1kr3Wr
+
 sleep 2
 /usr/local/bin/nym-socks5-client init --id socks5 --provider $ADDRESS --gateway $GATEWAY | tee ~/nym/socks5.txt
 
